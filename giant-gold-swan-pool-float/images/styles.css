@@ -1,0 +1,199 @@
+
+@media (min-width: 790px){
+  .instafeed-col.instafeed-col-item-06 > *{
+    width: calc(16.6666% - 20px);
+    margin-top: 20px;
+    margin-left: 20px;
+  }
+}
+@media (min-width: 576px) and (max-width: 789px){
+  .instafeed-col.instafeed-col-item-06 > *{
+    width: calc(25% - 20px);
+    margin-top: 20px;
+    margin-left: 20px;
+  }
+}
+
+
+.snptwdgt-container{
+margin-top: 20px;
+}
+.snptwdgt-container .snptwdgt__ftr{
+display: none;
+}
+
+
+@media (min-width: 790px){
+  .tt-hotspot-content {
+	width: 300px;
+  }
+}
+
+
+@media (min-width: 790px){
+  .tt-hotspot-content {
+	width: 300px;
+  }
+}
+
+
+.tt-promo-fixed.nonevent{
+  pointer-events: none;
+}
+.tt-promo-fixed {
+  display: -ms-flexbox;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-flex-direction: row;
+  -ms-flex-direction: row;
+  flex-direction: row;
+  -webkit-flex-wrap: nowrap;
+  -ms-flex-wrap: nowrap;
+  flex-wrap: nowrap;
+  -webkit-justify-content: flex-start;
+  -ms-flex-pack: start;
+  justify-content: flex-start;
+  -webkit-align-content: stretch;
+  -ms-flex-line-pack: stretch;
+  align-content: stretch;
+  -webkit-align-items: stretch;
+  -ms-flex-align: stretch;
+  align-items: stretch;
+  background-color: #ffffff;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
+  padding: 10px;
+  overflow: hidden;
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 9;
+  margin-right: 20px;
+  min-width: 300px;
+  max-width: 360px;
+  -moz-opacity: 0;
+  -khtml-opacity: 0;
+  -webkit-opacity: 0;
+  opacity: 0;
+}
+
+.tt-promo-fixed .tt-btn-close {
+  background: none;
+  border: none;
+  outline: none;
+  color: #999999;
+  font-family: "wokiee_icons";
+  font-size: 14px;
+  position: absolute;
+  right: 2px;
+  top: 3px;
+  display: block;
+  cursor: pointer;
+  -moz-transition: color 0.2s linear;
+  -o-transition: color 0.2s linear;
+  -webkit-transition: color 0.2s linear;
+  transition: color 0.2s linear;
+}
+
+.tt-promo-fixed .tt-btn-close:before {
+  display: block;
+  content: "\e9b3";
+}
+
+.tt-promo-fixed .tt-btn-close:hover {
+  color: #2879fe;
+}
+
+.tt-promo-fixed .tt-img {
+  width: 80px;
+  min-width: 80px;
+}
+
+.tt-promo-fixed .tt-img img {
+  width: 100%;
+  height: auto;
+}
+
+@media (max-width: 380px) {
+  .tt-promo-fixed .tt-img {
+    width: 65px;
+    min-width: 65px;
+  }
+}
+
+.tt-promo-fixed .tt-img + .tt-description {
+  margin-left: 13px;
+  margin-top: -3px;
+}
+
+.tt-promo-fixed .tt-description {
+  display: -ms-flexbox;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-flex-direction: column;
+  -ms-flex-direction: column;
+  flex-direction: column;
+  -webkit-flex-wrap: nowrap;
+  -ms-flex-wrap: nowrap;
+  flex-wrap: nowrap;
+  -webkit-justify-content: flex-start;
+  -ms-flex-pack: start;
+  justify-content: flex-start;
+  -webkit-align-content: stretch;
+  -ms-flex-line-pack: stretch;
+  align-content: stretch;
+  -webkit-align-items: flex-start;
+  -ms-flex-align: start;
+  align-items: flex-start;
+  padding-right: 17px;
+  color: #999999;
+}
+
+.tt-promo-fixed .tt-description .tt-title {
+  font-size: 14px;
+  font-weight: 400;
+  font-family: "{{ settings.font_name2 }}", sans-serif;
+}
+
+.tt-promo-fixed .tt-description p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.tt-promo-fixed .tt-description p a {
+  color: #191919;
+  display: inline-block;
+  -moz-transition: color 0.2s linear;
+  -o-transition: color 0.2s linear;
+  -webkit-transition: color 0.2s linear;
+  transition: color 0.2s linear;
+}
+
+.tt-promo-fixed .tt-description p a:hover {
+  color: #2879fe;
+}
+
+.tt-promo-fixed .tt-description .tt-box-top {
+  -webkit-flex: 2 1 auto;
+  -ms-flex: 2 1 auto;
+  flex: 2 1 auto;
+}
+
+.tt-promo-fixed .tt-description .tt-info {
+  color: #999999;
+  font-size: 12px;
+  line-height: 18px;
+  margin-top: 8px;
+  position: relative;
+  top: 2px;
+}
+
+.tt-promo-fixed .tt-description > *:nth-child(1) {
+  margin-top: 0;
+}
+.tt-promo-fixed .tt-description {
+ width: 100%;
+}
+.tt-promo-fixed .tt-description .tt-box-top {
+  width: 100%;
+}

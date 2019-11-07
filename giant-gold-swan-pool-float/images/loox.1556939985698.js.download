@@ -1,0 +1,725 @@
+var LOOX = LOOX || {};
+LOOX.root = 'https://loox.io';
+LOOX.clientId = 'Nybfe4lLsL';
+var __looxLoaded = __looxLoaded || false;
+(function(){
+	if (__looxLoaded)
+		return;
+
+	if (typeof(LOOX) == 'undefined') {
+		console.error('Loox object is not defined');
+		return;
+	}
+
+	var root = LOOX.root || '';
+	__looxLoaded = true;
+
+	function iframe(id, url, h, w) {
+		return '<iframe id="' + id + '" src="' + url + '" height="' + h + '" width="' + w + '" frameborder="0" scrolling="no" margin="0" style="overflow:hidden;height:' + h + ';width:1px;min-width:' + w + ';"></iframe>';
+	}
+
+	function inject(url, id, h, options) {
+		options = options || {};
+		var body = document.body;
+		var div = document.createElement('div');
+		var iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+		url += ( url.match( /[\?]/g ) ? '&' : '?' ) + 'frame_id=' + id;
+
+		div.id = 'looxOverlay_' + id;
+		div.classList.add('loox-overlay');
+		div.style.cssText = "width: 100%;height:100%; position:fixed; font-family: Arial, Helvetica, sans-serif;top: 0;right: 0;bottom: 0;left: 0;z-index: 9999999999;opacity: 1;-webkit-transition: opacity 400ms ease-in;-moz-transition: opacity 400ms ease-in;transition: opacity 400ms ease-in;overflow-y:scroll;-webkit-overflow-scrolling: touch;";
+
+		if (options && options.overlay)
+			div.style.cssText += "background: rgba(238, 238, 238, 0.9);";
+
+		var marginTop = options.marginTop || (window.innerWidth > 600 ? "10%" : 0);
+			div.innerHTML = '<div style="position:relative;min-height:'+ (iOS ? '101%' : '100%') +';' + (options.width ? ("max-width:" + options.width) : "max-width:900px") + ';margin: ' + marginTop + ' auto 0;">' +
+			iframe(id, url, h, '100%') +
+			'</div>';
+
+		if (options && options.close_btn) {
+			var close = document.createElement('div');
+			close.id = 'modalclose';
+			close.style.cssText = "color:#424242; line-height:24px; position:absolute; right:20px; text-align:center; top:20px; width:24px; text-decoration:none; font-weight:bold; cursor:pointer; font-size:44px;";
+			close.innerHTML = "&times;";
+			div.children[0].appendChild(close);
+			var remove = function (e) {
+				if (e)
+					e.stopPropagation();
+
+				if (history)  return history.pushState("", document.title, window.location.pathname + window.location.search);
+				closeModal();
+			};
+			close.onclick = remove;
+			div.onclick = remove;
+		}
+
+		body.appendChild(div);
+
+		if (window.history && window.history.pushState) {
+			history.pushState({ url : url }, "", options.hash || "#qv");
+			$(window).on('popstate', function () { closeModal('quickview') });
+			body.style.overflow = 'hidden';
+		}
+
+		//- This is what causing the page to jump to top.
+		// if (iOS)
+		// 	body.style.position = 'fixed';
+		//
+		// body.style.width = '100%';
+	}
+	LOOX.inject = inject;
+	
+	var closeModal = function(frame) {
+		var overlayId = 'looxOverlay' + (frame ? '_' + frame : '');
+		var self = document.getElementById(overlayId);
+		if (self) self.parentNode.removeChild(self);
+
+		if (document.getElementsByClassName("loox-overlay").length == 0) {
+			document.body.style.overflow = '';
+			document.body.style.position = '';
+		}
+	};
+	window.onpopstate = closeModal;
+	LOOX.closeModal = closeModal;
+
+	function listener(event) {
+		if (root == "https://loox.io" && event.origin != "https://loox.io")
+			return;
+
+		var m = typeof(event.data) == "string" ? JSON.parse(event.data) : event.data;
+		if (m.type == 'resize') {
+			var frame = document.getElementById(m.frame);
+			frame.height = m.height + 'px';
+			frame.style.height = m.height + 'px';
+			frame.parentNode.style.height = m.height + 'px';
+		}
+
+		if (m.type == 'report') {
+			if (typeof ga !== 'undefined') {
+				ga('send', 'event', m.eventName, m.value);
+			}
+			if (typeof _gaq !== 'undefined') {
+				_gaq.push(['_trackEvent', m.eventName, m.value]);
+			}
+		}
+
+		if (m.type == 'scroll_to_view') {
+			var div = document.getElementById("looxReviews");
+			div ? window.scrollTo(0, div.offsetTop) : null;
+		}
+
+		if (m.type == 'closeModal') {
+			if (history)
+				history.pushState("", document.title, window.location.pathname + window.location.search);
+			closeModal(m.frame);
+		}
+
+		if (m.type == 'write') {
+			(function() {
+				var productId = m.productId || LOOX.productId;
+				if (!productId) return console.error('Cannot open write dialog, productId is not defined');
+
+				var url = root + '/widget/' + LOOX.clientId + '/write/' + productId;
+				if (LOOX.system)
+					url += "?l=" + LOOX.system;
+
+				inject(url, 'looxDialog', '600px', { overlay: true });
+			})();
+		}
+
+		if (m.type == 'setSystem') {
+			LOOX.system = m.system;
+		}
+
+		if (m.type === 'quickview') {
+			LOOX.openQV(m.postId, m.ref || null);
+		}
+
+		if (m.type === 'hc-floater') {
+			LOOX.openHCFloater();
+		}
+	}
+	
+	window.looxWrite = function(productId) {
+		listener({ origin : "https://loox.io", data : { type: 'write', productId : productId } });
+	};
+
+	function store(k, s, v) {
+		if (!s) return;
+		var qv = s.getItem(k);
+		qv = qv ? qv.split(",") : [];
+		if (qv.indexOf(v) > -1) return;
+		qv.push(v);
+		s.setItem(k, qv.join(","));
+	}
+
+	LOOX.openQV = function(postId, ref) {
+		var url = root + '/post/quickview/' + postId;
+		
+		url += '?p=' + (LOOX.productId || "");
+		
+		if (LOOX.system)
+			url += "&l=" + LOOX.system;
+		
+		if (LOOX.version)
+			url += "&ver=" + LOOX.version;
+		
+		if (LOOX.hash)
+			url += "&h=" + LOOX.hash;
+		
+		ref = ref || LOOX.ref;
+		if (ref)
+			url += "&ref=" + ref;
+
+		inject(url, 'quickview', '500px', { width : "100%", hash : "#qv" + postId, overlay: true, marginTop: (LOOX.fbScrollTop ? LOOX.fbScrollTop + 'px' : '0') });
+
+		store("qv", sessionStorage, postId);
+	};
+
+	var version = /lx_ver=([0-9A-Za-z_\-|.]+)/gi.exec(decodeURIComponent(window.location.search));
+	if (version && version.length > 0)
+		LOOX.version = version[1];
+
+	if (typeof ShopifyAnalytics != "undefined" && ShopifyAnalytics.meta && ShopifyAnalytics.meta.product)
+		LOOX.productId = ShopifyAnalytics.meta.product.id;
+
+	window.addEventListener ? addEventListener("message", listener, false) : attachEvent("onmessage", listener);
+
+	function domReady(cb) { return /in/.test(document.readyState) ? setTimeout(domReady, 9, cb): cb(); }
+	LOOX.domReady = domReady;
+
+	LOOX.domReady(function() {
+		var query = decodeURIComponent(window.location.search);
+
+		var reviews_qs = /^\?lx=([0-9A-Za-z_\-|.]+)/gi.exec(query);
+		if (reviews_qs && reviews_qs.length > 0) {
+			var url = root + '/widget/' + LOOX.clientId + '/dialog/' + reviews_qs[1];
+			if (LOOX.system)
+				url += "?l=" + LOOX.system;
+	
+			inject(url, 'looxDialog', '600px', { overlay: true });
+		}
+	
+		var edit_qs = /^\?lx_ep=([0-9A-Za-z_\-|.]+)/gi.exec(query);
+		if (edit_qs && edit_qs.length > 0) {
+			inject(root + '/widget/' + LOOX.clientId + '/add-photo/' + edit_qs[1], 'looxEdit', '600px', { overlay: true });
+		}
+	
+		var qv_qs = /(?:\?|&)qv=([0-9A-Za-z_\-]+)/gi.exec(query);
+		if (qv_qs && qv_qs.length > 0) {
+			listener({ origin : "https://loox.io", data : { type: 'quickview', postId: qv_qs[1] } });
+		}
+	
+		if (/(?:\?|&)ref=review/gi.test(query)) {
+			listener({ origin : "https://loox.io", data : { type: 'write' } });
+		}
+	});
+})();
+
+// Ajax function
+(function() {
+	// Modified from source: http://stackoverflow.com/a/18078705/772086
+	LOOX.ajax = ajax = {};
+	ajax.x = function () {
+		if (typeof XMLHttpRequest !== 'undefined') {
+			return new XMLHttpRequest();
+		}
+		var versions = [
+			"MSXML2.XmlHttp.6.0",
+			"MSXML2.XmlHttp.5.0",
+			"MSXML2.XmlHttp.4.0",
+			"MSXML2.XmlHttp.3.0",
+			"MSXML2.XmlHttp.2.0",
+			"Microsoft.XmlHttp"
+		];
+
+		var xhr;
+		for (var i = 0; i < versions.length; i++) {
+			try {
+				xhr = new ActiveXObject(versions[i]);
+				break;
+			} catch (e) {
+			}
+		}
+		return xhr;
+	};
+
+	ajax.send = function (url, callback, method, data, async) {
+		if (async === undefined) {
+			async = true;
+		}
+		var x = ajax.x();
+		x.open(method, url, async);
+		x.onreadystatechange = function () {
+			if (x.readyState == 4) {
+				try {
+					return callback(JSON.parse(x.responseText))
+				} catch(error) {
+					return callback(x.responseText)
+				}
+			}
+		};
+		if (method == 'POST') {
+			x.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+		}
+		x.send(data)
+	};
+
+	ajax.get = function (url, data, callback, async) {
+		var query = [];
+		for (var key in data) {
+			query.push(encodeURIComponent(key) + '=' + encodeURIComponent(data[key]));
+		}
+		ajax.send(url + (query.length ? '?' + query.join('&') : ''), callback, 'GET', null, async)
+	};
+
+	ajax.post = function (url, data, callback, async) {
+		var query = [];
+		for (var key in data) {
+			query.push(encodeURIComponent(key) + '=' + encodeURIComponent(data[key]));
+		}
+		ajax.send(url, callback, 'POST', query.join('&'), async)
+	};
+})();
+
+// Star rating
+(function() {
+	var ratingsElems = document.getElementsByClassName('loox-rating');
+
+	(function() {
+		if (LOOX.iconFontLoaded) return;
+		LOOX.iconFontLoaded = true;
+		var css =
+			"@font-face {font-family: 'LooxIcons'; src: url('data:application/x-font-woff;base64,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'); font-weight: normal; font-style: normal;}" +
+			".loox-icon {display: inline-block; font: normal normal normal 14px/1 LooxIcons; font-size: inherit; text-rendering: auto; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;}" +
+			"i.loox-icon {font-family:LooxIcons !important; }" +
+			".loox-star:before {content: '\\e800';}" +
+			".loox-star-o:before {content: '\\e801';}" +
+			".loox-star-half-o:before {content: '\\f123';}";
+		var style = document.createElement('style');
+		if (style.styleSheet) style.styleSheet.cssText = css; else style.appendChild(document.createTextNode(css));
+		(document.head || document.getElementsByTagName('head')[0]).appendChild(style);
+	})();
+
+	var ratingsCache = {};
+	var allowRequests = true;
+	var drawRating = function() {
+		var elementsBag = {};
+		for (var i = 0; i < ratingsElems.length; i++) {
+			var current = ratingsElems[i];
+			if (current.getAttribute('data-rating-upgraded')) continue;
+
+			var productId = current.getAttribute('data-id');
+			if (ratingsCache[productId]) {
+				current.setAttribute('data-rating', ratingsCache[productId].rating);
+				current.setAttribute('data-raters', ratingsCache[productId].raters);
+			}
+
+			var rating = Number(current.getAttribute('data-rating'));
+			if (!rating || isNaN(rating)) {
+				if (productId && current.getAttribute('data-fetch') != null) {
+					if (!elementsBag[productId]) elementsBag[productId] = [];
+					elementsBag[productId].push(current);
+					current.removeAttribute('data-fetch');
+				}
+				continue;
+			}
+			var rounded = Math.ceil(rating * 2) / 2;
+
+			var content = '';
+			for (var j = 1; j <= 5; j++) {
+				var css =
+					j <= rounded ? "loox-star" :
+					j <= rounded + 0.5 ? "loox-star-half-o" :
+					"loox-star-o";
+
+				content += "<i class='loox-icon " + css + "'></i>";
+			}
+
+			var count = Number(current.getAttribute('data-raters'));
+			if (count && !isNaN(count)) {
+				count = count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+				var pattern = current.getAttribute('data-pattern');
+				if (pattern)
+					content += "&nbsp;<span>" + pattern.replace(/\[count\]/gi, count).replace(/\[rating\]/gi, rating) + "</span>";
+				else
+					content += "&nbsp;<span>(" + count + ")</span>";
+
+				current.setAttribute('title', rating + " rating (" + count + " votes)");
+			}
+
+			current.setAttribute('data-rating-upgraded', 1);
+			current.innerHTML = content;
+		}
+		
+		var productsIds = Object.keys(elementsBag);
+		if (productsIds.length > 0 && allowRequests) {
+			LOOX.ajax.get(LOOX.root + '/widget/' + LOOX.clientId + '/ratings', {
+				products_ids: productsIds.join(','),
+				h : typeof(loox_global_hash) !== "undefined" ? loox_global_hash : ""
+			}, function(res) {
+				if (!res.success) {
+					allowRequests = false;
+					return;
+				}
+				
+				if (typeof([]) == typeof(res.ratings) && res.ratings.length > 0) {
+					for (var i = 0; i < res.ratings.length; i++) {
+						var productData = res.ratings[i];
+						ratingsCache[productData.pid] = {
+							rating: productData.rating,
+							raters: productData.raters,
+						};
+						
+						var starElements = elementsBag[productData.pid] || [];
+						for(var e = 0; e < starElements.length; e++) {
+							var starElement = starElements[e];
+							starElement.setAttribute('data-rating', productData.rating);
+							starElement.setAttribute('data-raters', productData.raters);
+						}
+					}
+				}
+			});
+		}
+	};
+	setInterval(drawRating, 500);
+	drawRating();
+})();
+
+// Product widget injector
+(function() {
+	var root = LOOX.root || '';
+
+	if (LOOX.widgetRunOnce) return;
+	LOOX.widgetRunOnce = true;
+
+	var style = document.createElement('style');
+	var clearfix =
+		'#looxReviews, #looxCarousel {float:none;clear:both;}' +
+		'#looxReviews:before, #looxReviews:after, #looxCarousel:before, #looxCarousel:after {content:" ";visibility:hidden;display:block;height:0;clear:both;}';
+	if (style.styleSheet) style.styleSheet.cssText = clearfix; else style.appendChild(document.createTextNode(clearfix));
+	(document.head || document.getElementsByTagName('head')[0]).appendChild(style);
+
+	var injectReviews = function() {
+		var reviews = document.getElementById('looxReviews');
+		if (!reviews) return;
+
+		if (reviews.getAttribute('data-upgraded')) return;
+		reviews.setAttribute('data-upgraded', 'true');
+
+		var first = reviews.parentNode.childNodes[0];
+		if (first && /columns/gi.test(first.className)) {
+			var clear = document.createElement('div');
+			clear.className = "clearfix";
+			reviews.parentNode.insertBefore(clear, reviews);
+		}
+
+		LOOX.productId = reviews.getAttribute('data-product-id');
+		if (LOOX.productId == "{{product.id}}")
+			return console.error("LOOX reviews - product id is set to \"{{ product.id }}\" which is not a real product Id, the loox widget cannot be injected using settings or be placed inside a {% raw %} directive");
+
+		var inline_reviews = document.getElementById('loox-inline-reviews');
+		if (inline_reviews)
+			LOOX.hash = inline_reviews.getAttribute('data-loox-hash');
+
+		if (typeof(loox_global_hash) != "undefined")
+			LOOX.hash = loox_global_hash;
+
+		var url = root + '/widget/' + LOOX.clientId + '/reviews';
+		var qs = [];
+
+		var aggregate = reviews.getAttribute('data-loox-aggregate') != null;
+		if (aggregate && LOOX.productId)
+			qs.push("productId=" + LOOX.productId);
+		else if (LOOX.productId)
+			url += '/' + LOOX.productId;
+
+		if (LOOX.hash)
+			qs.push("h=" + LOOX.hash);
+
+		if (LOOX.system)
+			qs.push("l=" + LOOX.system);
+
+		if (LOOX.version)
+			qs.push("ver=" + LOOX.version);
+
+		var mode = reviews.getAttribute('data-mode');
+		if (mode)
+			qs.push("mode=" + mode);
+
+		var productIds = reviews.getAttribute('data-or-productIds');
+		if (productIds)
+			qs.push("productIds=" + productIds);
+
+		var limit = reviews.getAttribute('data-limit');
+		if (limit)
+			qs.push("limit=" + limit);
+
+		var paging = reviews.getAttribute('data-paging');
+		if (paging)
+			qs.push("paging=" + paging);
+
+		var header = reviews.getAttribute('data-header');
+		if (header)
+			qs.push("header=" + header);
+
+		var write_btn = reviews.getAttribute('data-write-btn');
+		if (write_btn)
+			qs.push("write_btn=" + write_btn);
+
+		var visibility = reviews.getAttribute('data-visibility');
+		if (visibility)
+			qs.push("visibility=" + visibility);
+
+		var thumbnails = reviews.getAttribute('data-product-thumbnails');
+		if (thumbnails)
+			qs.push("thumbnails=" + thumbnails);
+
+		var variant = reviews.getAttribute('data-variant');
+		if (variant)
+			qs.push("variant=" + variant);
+
+		if (qs.length > 0)
+			url += "?" + qs.join('&');
+
+		var h = '0';
+
+		if (!reviews.style.cssText)
+			reviews.style.margin = "0 auto;";
+
+		var w = '100%';
+		reviews.innerHTML = '<iframe id="looxReviewsFrame" src="' + url + '" height="' + h + '" width="' + w + '" frameborder="0" scrolling="no" margin="0" style="overflow:hidden;height:' + h + ';width:' + w + ';"></iframe>';
+	};
+	injectReviews();
+	setInterval(injectReviews, 1000);
+})();
+
+// Pop widget
+(function(LOOX) {
+	if (!LOOX|| LOOX.pop_widget || typeof loox_pop_active === 'undefined' ) return;
+
+	LOOX.pop_widget = {
+		active: loox_pop_active,
+		display_filter: typeof loox_pop_display !== 'undefined' ? loox_pop_display : null
+	};
+
+	if (!LOOX.pop_widget.active) return;
+
+	function allowOnThisPage() {
+		if (!LOOX.pop_widget.display_filter) return true;
+
+		var path = window.location.pathname;
+		if (path === '/') return LOOX.pop_widget.display_filter.home_page;
+		if (path.indexOf('/cart') !== -1) return LOOX.pop_widget.display_filter.cart_page;
+		if (LOOX.productId) return LOOX.pop_widget.display_filter.product_page;
+
+		return LOOX.pop_widget.display_filter.other_pages;
+	}
+
+	if (!allowOnThisPage()) return;
+
+	function getContextIds(cb) {
+		var contextIds = [];
+
+		var url = document.URL || window.location.href;
+		if (url.indexOf('/cart') != -1 && LOOX.ajax) {
+			LOOX.ajax.get('//'+ window.location.hostname + '/cart.json', {}, function(response) {
+				if (response && response.items) {
+					for (var i = 0; i < response.items.length; i++) 
+						contextIds.push(response.items[i].product_id);
+				}
+
+				return cb(contextIds);
+			});
+		}
+		else {
+			if (LOOX.productId) 
+				contextIds.push(LOOX.productId);
+			
+			return cb(contextIds);
+		}
+	}
+
+	getContextIds(function(ids) {
+		var scriptSrc = LOOX.root + '/widget/' + LOOX.clientId + '/pop-notification.js';
+		
+		var query = []
+		if(typeof(loox_global_hash) !== 'undefined')  query.push('h=' + loox_global_hash);
+		if (ids.length > 0) {
+			query.push('productIds=' + ids.join(','));
+			LOOX.pop_widget.hide_product = true;
+		}
+		
+		if (query.length > 0) scriptSrc += '?' + query.join('&');
+		
+		var poptag = document.createElement('script');
+		poptag.async = 1;
+		poptag.src = scriptSrc;
+		
+		if (document.body) return document.body.appendChild(poptag);
+		LOOX.domReady(function() {
+			document.body.appendChild(poptag);
+		});
+	});
+})(LOOX || {});
+
+// Happy Customers Floater
+LOOX.openHCFloater = function() {
+	if (!LOOX.root || !LOOX.clientId) return;
+
+	var floaterSrc = LOOX.root + '/widget/' + LOOX.clientId + '/reviews';
+	var query = [];
+	if(typeof(loox_global_hash) !== 'undefined')  query.push('h=' + loox_global_hash);
+	if (query.length > 0) floaterSrc += '?' + query.join('&');
+	LOOX.inject(floaterSrc, 'looxModalFrame', '100%', { overlay: true, marginTop: '0px'});
+};
+
+LOOX.isMobile = function() {
+	return (window.innerWidth || document.documentElement.clientWidth) < 720;
+};
+
+// Floating widget
+(function(LOOX) {
+	if (!LOOX|| LOOX.floating_widget || typeof loox_floating_widget === 'undefined' ) return;
+
+	LOOX.floating_widget = loox_floating_widget;
+
+	if (!LOOX.floating_widget.active) return;
+
+	if (LOOX.floating_widget.hide_on_mobile && LOOX.isMobile()) return;
+
+	function allowOnThisPage() {
+		var path = window.location.pathname;
+		if (path === '/') return LOOX.floating_widget.display_on_home_page;
+		if (path.indexOf('/cart') !== -1) return LOOX.floating_widget.display_on_cart_page;
+		if (LOOX.productId) return LOOX.floating_widget.display_on_product_page;
+		return LOOX.floating_widget.display_on_other_pages;
+	}
+
+	if (!allowOnThisPage()) return;
+
+	var floatCss = [
+		".loox-float-toggler { display: block; padding: 10px 20px 15px 20px; font-size: 18px; line-height: 1; cursor: pointer; position: fixed; z-index: 9999; top: 50%; opacity: 0; transition-duration: 0.4s; transition-timing-function: cubic-bezier(1, 0, 0, 1) }",
+		".loox-float-toggler.loox-float-toggler--right { border-radius: 0 0 15px 15px; transform-origin: 100% 50%; transform: rotate(90deg) translate(50%, 0); right: 0; }",
+		".loox-float-toggler.loox-float-toggler--left { border-radius: 0 0 15px 15px; transform: rotate(270deg) translate(-50%, -50%); transform-origin: 0 0; left: 0; }",
+		".loox-float-toggler:hover, .loox-float-toggler:focus { color: initial; }",
+		".loox-float-toggler--active.loox-float-toggler--right { transform: rotate(90deg) translate(50%, 50%); opacity: 1 }",
+		".loox-float-toggler--active.loox-float-toggler--left { transform: rotate(270deg) translate(-50%, 0); opacity: 1 }",
+	].join('');
+
+	var style = document.createElement('style');
+	if (style.styleSheet) style.styleSheet.cssText = floatCss; else style.appendChild(document.createTextNode(floatCss));
+	(document.head || document.getElementsByTagName('head')[0]).appendChild(style);
+
+	var floatContainer = document.createElement('div');
+	floatContainer.classList.add("loox-float-toggler-container");
+
+	var togglerBtn = document.createElement('div');
+	togglerBtn.innerHTML = '<i class="loox-icon loox-star"></i> ' + LOOX.floating_widget.button_text;
+	togglerBtn.classList.add('loox-float-toggler');
+	if (LOOX.floating_widget.position == 'left') togglerBtn.classList.add('loox-float-toggler--left');
+	else togglerBtn.classList.add('loox-float-toggler--right');
+
+	togglerBtn.style.backgroundColor = '#' + (LOOX.floating_widget.button_bg_color || '333');
+	togglerBtn.style.color = '#' + (LOOX.floating_widget.button_text_color || 'fff');
+	togglerBtn.addEventListener('click', function() {
+		LOOX.openHCFloater();
+	});
+
+	floatContainer.appendChild(togglerBtn);
+	LOOX.domReady(function() {
+		document.body.appendChild(floatContainer);
+
+		setTimeout(function() {
+			togglerBtn.classList.add('loox-float-toggler--active');
+		}, 1500);
+	});
+})(LOOX || {});
+
+// Slider widget
+(function(LOOX) {
+	var injectCarousel = function() {
+		var carouselContainer = document.getElementById('looxCarousel');
+		if (!carouselContainer || carouselContainer.length == 0 || carouselContainer.getAttribute('data-caraousel-loaded')) return;
+		carouselContainer.setAttribute('data-caraousel-loaded', 'true');
+
+		var root = LOOX.root || '';
+		var url = root + '/widget/' + LOOX.clientId + '/carousel';
+
+		var carousel_frame_id = 'looxCarouselFrame';
+
+		var query = [];
+		query.push('frame_id=' + carousel_frame_id);
+		if(typeof(loox_global_hash) !== 'undefined')  query.push('h=' + loox_global_hash);
+
+		var showMoreBtn = carouselContainer.getAttribute('data-show-more') || null;
+		if (showMoreBtn != null) query.push('show_more_btn=' + encodeURIComponent(showMoreBtn));
+
+		var maxWidth = carouselContainer.getAttribute('data-max-width') || null;
+		if (maxWidth != null) query.push('max_width=' + encodeURIComponent(maxWidth));
+
+		var arrowsColor = carouselContainer.getAttribute('data-arrows-color') || null;
+		if (arrowsColor != null) query.push('arrows_color=' + encodeURIComponent(arrowsColor));
+
+		var dotsColor = carouselContainer.getAttribute('data-dots-color') || null;
+		if (dotsColor != null) query.push('dots_color=' + encodeURIComponent(dotsColor));
+
+		var buttonColor = carouselContainer.getAttribute('data-button-color') || null;
+		if (buttonColor != null) query.push('button_color=' + encodeURIComponent(buttonColor));
+
+		var productid = carouselContainer.getAttribute('data-product-ids') || null;
+		if (productid != null) query.push('productIds=' + encodeURIComponent(productid));
+
+		var mode = carouselContainer.getAttribute('data-mode') || null;
+		if (mode != null) query.push('mode=' + encodeURIComponent(mode));
+
+		var font = carouselContainer.getAttribute('data-use-widget-font') || null;
+		if (font != null) query.push('use_widget_font=' + encodeURIComponent(font));
+
+		if (window.location.search && (window.location.search.indexOf('design_theme_id') !==-1 || window.location.search.startsWith("?oseid=")))
+			query.push('shopify_editor_preview=true');
+
+		if (query.length > 0) url += '?' + query.join('&');
+
+		var h = '0';
+		var w = '100%';
+		var carouselFrame = document.createElement('iframe');
+		carouselFrame.id = carousel_frame_id;
+		carouselFrame.src = url;
+		carouselFrame.height = h;
+		carouselFrame.width = w;
+		carouselFrame.scrolling = 'no';
+		carouselFrame.setAttribute('style', 'display:block;border:0;overflow:hidden;height:' + h + ';width:' + w + ';');
+		carouselContainer.appendChild(carouselFrame);
+	};
+	
+	injectCarousel();
+	setInterval(injectCarousel, 1000);
+})(LOOX || {});
+
+(function() {
+	if (!LOOX) return;
+	LOOX.domReady(function () {
+		if (typeof(Shopify) !== "object" || !Shopify.checkout || !Shopify.Checkout)
+			return;
+
+		if (Shopify.Checkout.page !== "thank_you")
+			return;
+
+		var s = sessionStorage;
+		if (!s) return;
+
+		var qv = s.getItem("qv");
+		if (!qv || qv.length === 0)
+			return;
+
+		s.removeItem("qv");
+
+		var img = document.createElement('img');
+		img.src = ['//pixel.loox.io',"track", "order"].join('/') + "?c=" + LOOX.clientId + "&o=" + Shopify.checkout.order_id + "&t=" + Shopify.checkout.token +"&qv=" + qv;
+		img.setAttribute('style', 'display:none;border:0;overflow:hidden;height:1px;width:1px;');
+		document.body.appendChild(img);
+	});
+})();
